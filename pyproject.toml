@@ -7,6 +7,7 @@ name = "market-data-collector"
 version = "0.1.0"
 description = "Public trade streams from Binance and Kraken into Apache Kafka"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
     "confluent-kafka>=2.5",
