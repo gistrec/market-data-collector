@@ -1,5 +1,5 @@
--- Kafka → ClickHouse. SASL credentials are not here: they live in the server
--- config (<kafka> section, service account "clickhouse").
+-- Kafka → ClickHouse. Rendered by clickhouse/render.py: the {{...}} placeholders
+-- are the Kafka API key of the "clickhouse" service account and never live in git.
 
 CREATE DATABASE IF NOT EXISTS marketdata;
 
@@ -23,6 +23,8 @@ PARTITION BY toYYYYMM(ts)
 ORDER BY (exchange, symbol, ts, trade_id);
 
 -- The consumer. One consumer: connections are capped at 20 on the free eCKU.
+-- SASL goes in table settings, so the server config needs no <kafka> section
+-- and the server needs no restart.
 CREATE TABLE IF NOT EXISTS marketdata.trades_queue
 (
     exchange String,
@@ -38,11 +40,15 @@ CREATE TABLE IF NOT EXISTS marketdata.trades_queue
 )
 ENGINE = Kafka
 SETTINGS
-    kafka_broker_list = 'pkc-l7q2j.europe-north1.gcp.confluent.cloud:9092',
+    kafka_broker_list = '{{KAFKA_BOOTSTRAP}}',
     kafka_topic_list = 'marketdata.binance.trades,marketdata.kraken.trades',
     kafka_group_name = 'clickhouse-marketdata',
     kafka_format = 'JSONEachRow',
-    kafka_num_consumers = 1;
+    kafka_num_consumers = 1,
+    kafka_security_protocol = 'sasl_ssl',
+    kafka_sasl_mechanism = 'PLAIN',
+    kafka_sasl_username = '{{KAFKA_API_KEY}}',
+    kafka_sasl_password = '{{KAFKA_API_SECRET}}';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS marketdata.trades_mv TO marketdata.trades AS
 SELECT

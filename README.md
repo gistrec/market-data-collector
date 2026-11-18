@@ -60,5 +60,12 @@ A gap while a socket is down is not backfilled.
 topics, a materialized view, and `marketdata.trades` (ReplacingMergeTree, so a
 replayed batch collapses on `exchange, symbol, ts, trade_id`).
 
+The Kafka credentials are table settings, filled in at apply time:
+
+```bash
+KAFKA_BOOTSTRAP=... KAFKA_API_KEY=... KAFKA_API_SECRET=... \
+    python3 clickhouse/render.py | clickhouse-client --multiquery
+```
+
 Infrastructure (cluster, topics, service accounts, ACLs) lives in
 [gistrec-cloud/infra](https://github.com/gistrec-cloud/infra) under `terraform/confluent`.
