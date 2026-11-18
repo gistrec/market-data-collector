@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-data-collector"
+version = "0.1.0"
+description = "Public trade streams from Binance and Kraken into Apache Kafka"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "confluent-kafka>=2.5",
+    "websockets>=13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+market-data-collector = "market_data_collector.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
