@@ -25,6 +25,7 @@ class Config:
     kafka_key: str
     kafka_secret: str
     linger_ms: int
+    marker_dir: str
 
     @property
     def binance_symbols(self) -> tuple[str, ...]:
@@ -53,4 +54,6 @@ def load() -> Config:
         kafka_key=env.get("KAFKA_API_KEY", ""),
         kafka_secret=env.get("KAFKA_API_SECRET", ""),
         linger_ms=int(env.get("MDC_LINGER_MS", "500")),
+        # Relative to the pm2 cwd; empty disables the markers.
+        marker_dir=env.get("MDC_MARKER_DIR", ".markers"),
     )
