@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import time
 from collections import Counter
 
 from .config import Config
@@ -14,6 +15,7 @@ log = logging.getLogger(__name__)
 class StdoutSink:
     def __init__(self) -> None:
         self.sent: Counter[str] = Counter()
+        self.acked: dict[str, float] = {}  # nothing is delivered, so no markers on a dry run
 
     def send(self, topic: str, record: dict) -> None:
         self.sent[topic] += 1
@@ -36,6 +38,8 @@ class KafkaSink:
             raise SystemExit("KAFKA_BOOTSTRAP, KAFKA_API_KEY and KAFKA_API_SECRET are required")
         self.sent: Counter[str] = Counter()
         self.failed = 0
+        # topic -> time.time() of the last broker ack: what the freshness markers report.
+        self.acked: dict[str, float] = {}
         self._producer = Producer({
             "bootstrap.servers": cfg.kafka_bootstrap,
             "security.protocol": "SASL_SSL",
@@ -53,6 +57,8 @@ class KafkaSink:
         if err is not None:
             self.failed += 1
             log.error("delivery failed: topic=%s err=%s", msg.topic(), err)
+        else:
+            self.acked[msg.topic()] = time.time()
 
     def send(self, topic: str, record: dict) -> None:
         payload = json.dumps(record, separators=(",", ":")).encode()

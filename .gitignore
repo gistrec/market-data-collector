@@ -10,3 +10,6 @@ dist/
 
 # Secrets: Kafka API key
 .env
+
+# Freshness markers (netdata filecheck)
+.markers/

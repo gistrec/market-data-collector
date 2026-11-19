@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import signal
 
 from . import config, feeds
@@ -12,15 +13,35 @@ from .sink import KafkaSink, StdoutSink
 log = logging.getLogger("market_data_collector")
 
 STATS_EVERY_S = 60
+MARKS_EVERY_S = 10
 
 
-async def _housekeeping(sink) -> None:
+def touch_markers(marker_dir: str, acked: dict[str, float], touched: dict[str, float]) -> None:
+    """Set <topic>.last-delivery mtime to the last broker ack; netdata filecheck alerts on its age."""
+    for topic, ts in acked.items():
+        if touched.get(topic) == ts:
+            continue
+        path = os.path.join(marker_dir, f"{topic}.last-delivery")
+        try:
+            os.makedirs(marker_dir, exist_ok=True)
+            open(path, "a").close()
+            os.utime(path, (ts, ts))
+        except OSError as e:
+            log.error("marker %s: %s", path, e)
+            continue
+        touched[topic] = ts
+
+
+async def _housekeeping(sink, marker_dir: str) -> None:
     last: dict[str, int] = {}
+    touched: dict[str, float] = {}
     ticks = 0
     while True:
         await asyncio.sleep(0.2)
         sink.poll()  # serve Kafka delivery callbacks
         ticks += 1
+        if marker_dir and ticks % (MARKS_EVERY_S * 5) == 0:
+            touch_markers(marker_dir, sink.acked, touched)
         if ticks % (STATS_EVERY_S * 5) == 0:
             now = dict(sink.sent)
             delta = {t: n - last.get(t, 0) for t, n in sorted(now.items())}
@@ -39,7 +60,7 @@ async def run(args: argparse.Namespace) -> None:
     log.info("exchanges=%s bases=%s sink=%s", ",".join(cfg.exchanges), ",".join(cfg.bases),
              "stdout" if args.stdout else cfg.kafka_bootstrap)
 
-    tasks = [asyncio.create_task(_housekeeping(sink))]
+    tasks = [asyncio.create_task(_housekeeping(sink, cfg.marker_dir))]
     for name in cfg.exchanges:
         topic = cfg.topic(name)
         tasks.append(asyncio.create_task(
